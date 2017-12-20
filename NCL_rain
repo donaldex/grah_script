@@ -1,0 +1,88 @@
+;   Example script to produce standard plots for a WRF squall run
+
+load "$NCARG_ROOT/lib/ncarg/nclscripts/csm/gsn_code.ncl"
+load "$NCARG_ROOT/lib/ncarg/nclscripts/wrf/WRFUserARW.ncl"
+;load "./WRFUserARW.ncl"
+
+begin
+;
+; The WRF ARW input file.  
+; This needs to have a ".nc" appended, so just do it.
+
+  a = addfile("../wrfout_d01_0001-01-01_00:00:00.nc","r")
+
+;  We generate plots, but what kind do we prefer?
+
+;   type = "x11"
+  type = "pdf"
+;  type = "ps"
+;  type = "ncgm"
+
+  wks = gsn_open_wks(type,"plt_precrate")  
+;  gsn_define_colormap(wks,"WhBlGrYeRe")
+
+
+
+; Set some Basic Plot options
+    res = True
+    res@tiMainString     = "precipitation rate"         
+    res@tiYAxisString    ="rate (kg/s)"
+    res@tiXAxisString    ="time (mins)"
+
+    pltres = True
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+;  What times and how many time steps are in the data set?
+
+  times  = wrf_user_list_times(a)  ; get times in the file
+  ntimes = dimsizes(times)         ; number of times in the file
+
+; The specific plane we want to plot data on
+
+  plane = (/ 20., 0./)   ; (x,y) point for vertical plane
+  angle = 90.0
+  pii = 3.14159
+  aspect_ratio = .7
+
+
+count=new(ntimes,float)
+count=0
+precrate=new(ntimes,float)
+precrate=0
+totprec=new(ntimes,float)
+totprec=0
+
+; This is the big loop over all of the time periods to process.
+
+  do it = 1,ntimes-1
+
+    time = it
+    res@TimeLabel                  = times(it)
+    res@AspectRatio                = aspect_ratio
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+; First get the variables we will need        
+  
+
+;  cape3d=wrf_user_getvar(a,"cape_3d",time)
+;;;;;
+
+
+rainc=wrf_user_getvar(a,"RAINC",time)
+rainnc=wrf_user_getvar(a,"RAINNC",time)
+
+
+totprec(it)=sum(rainc)+sum(rainnc)
+precrate(it)=totprec(it)-totprec(it-1)
+count(it)=count(it-1)+1
+
+
+  end do  ;       end of the time loop
+precrate=1000*1000*precrate/600
+count=count*10
+plot=gsn_xy(wks,count,precrate,res)
+asciiwrite("precrate.o",precrate)
+end
